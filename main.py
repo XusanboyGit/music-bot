@@ -11,7 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 def send_welcome(message):
     bot.send_message(
         message.chat.id, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni to'liq holda topib yuklab beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni to'liq holatda topib yuklab beraman!"
     )
 
 @bot.message_handler(content_types=['text'])
@@ -20,13 +20,13 @@ def search_and_send_audio(message):
     chat_id = message.chat.id
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
-    # YouTube serverlarni bloklagani uchun SoundCloud qidiruvidan foydalanamiz (To'liq va xatosiz ishlaydi!)
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
         'default_search': 'scsearch1',
         'noplaylist': True,
-        'quiet': True
+        'quiet': True,
+        'ignoreerrors': True
     }
     
     try:
@@ -34,7 +34,13 @@ def search_and_send_audio(message):
             os.makedirs('downloads')
             
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=True)
+            info = ydl.extract_info(query, download=False)
+            
+            if not info or ('entries' in info and not info['entries']) or (not 'entries' in info and not info):
+                bot.edit_message_text("❌ Kechirasiz, bu nom bo'yicha musiqa topilmadi.", chat_id, status_msg.message_id)
+                return
+
+            ydl.download([query])
             
             search_pattern = f"downloads/{chat_id}_*"
             files = glob.glob(search_pattern)
@@ -67,11 +73,18 @@ def search_and_send_audio(message):
                     os.remove(audio_file_path)
                 bot.delete_message(chat_id, status_msg.message_id)
             else:
-                bot.edit_message_text("❌ Kechirasiz, musiqani topib bo'lmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
+                bot.edit_message_text("❌ Kechirasiz, bu musiqani yuklab bo'lmadi.", chat_id, status_msg.message_id)
                 
     except Exception as e:
         print(f"Xatolik: {e}")
-        bot.edit_message_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
+        bot.edit_message_text("❌ Bu qo'shiqda cheklov bor ekan. Boshqa qo'shiq yozib ko'ring.", chat_id, status_msg.message_id)
+
+    finally:
+        # Har ehtimolga qarshi qoldiq fayllarni tozalash
+        base_name = f"downloads/{chat_id}_"
+        for f in glob.glob(base_name + '*'):
+            if os.path.exists(f):
+                os.remove(f)
 
 print("Musiqa yuklovchi bot ishga tushdi...")
 bot.infinity_polling()
