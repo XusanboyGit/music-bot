@@ -3,7 +3,6 @@ from telebot import types
 import yt_dlp
 import os
 import glob
-import traceback
 
 TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
 bot = telebot.TeleBot(TOKEN)
@@ -12,7 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 def send_welcome(message):
     bot.send_message(
         message.chat.id, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni to'liq holatda yuklab beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni to'liq holda topib yuklab beraman!"
     )
 
 @bot.message_handler(content_types=['text'])
@@ -21,14 +20,13 @@ def search_and_send_audio(message):
     chat_id = message.chat.id
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
+    # YouTube serverlarni bloklagani uchun SoundCloud qidiruvidan foydalanamiz (To'liq va xatosiz ishlaydi!)
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'ytsearch1',
+        'default_search': 'scsearch1',
         'noplaylist': True,
-        'quiet': True,
-        # YouTube cheklovlarini chetlab o'tish uchun qo'shimcha sozlama
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
+        'quiet': True
     }
     
     try:
@@ -46,8 +44,10 @@ def search_and_send_audio(message):
                 
                 if 'entries' in info:
                     video_title = info['entries'][0].get('title', query)
+                    uploader = info['entries'][0].get('uploader', 'Music Bot')
                 else:
                     video_title = info.get('title', query)
+                    uploader = info.get('uploader', 'Music Bot')
                 
                 inline_markup = types.InlineKeyboardMarkup()
                 btn_owner = types.InlineKeyboardButton(text="👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7")
@@ -58,7 +58,7 @@ def search_and_send_audio(message):
                         chat_id=chat_id,
                         audio=audio,
                         title=video_title,
-                        performer="Music Bot",
+                        performer=uploader,
                         caption=f"🎵 Musiqangiz to'liq holda tayyor!\n\n🚀 @music_1_maktab_bot orqali yuklandi.",
                         reply_markup=inline_markup
                     )
@@ -67,11 +67,11 @@ def search_and_send_audio(message):
                     os.remove(audio_file_path)
                 bot.delete_message(chat_id, status_msg.message_id)
             else:
-                bot.edit_message_text("❌ Kechirasiz, musiqani topib bo'lmadi.", chat_id, status_msg.message_id)
+                bot.edit_message_text("❌ Kechirasiz, musiqani topib bo'lmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
                 
     except Exception as e:
-        print(f"Xatolik tafsiloti: {traceback.format_exc()}")
-        bot.edit_message_text("❌ YouTube yuklashga ruxsat bermadi yoki xatolik yuz berdi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
+        print(f"Xatolik: {e}")
+        bot.edit_message_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
 
 print("Musiqa yuklovchi bot ishga tushdi...")
 bot.infinity_polling()
