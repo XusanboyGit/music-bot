@@ -11,7 +11,7 @@ bot = telebot.TeleBot(TOKEN)
 def send_welcome(message):
     bot.send_message(
         message.chat.id, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni to'liq holatda topib yuklab beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni reklamasiz va to'liq holda topib yuklab beraman!"
     )
 
 @bot.message_handler(content_types=['text'])
@@ -20,12 +20,13 @@ def search_and_send_audio(message):
     chat_id = message.chat.id
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
+    # Qidiruv yanada aniq chiqishi uchun 'audio' so'zini qo'shamiz
     search_query = f"{query} audio"
     
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch25', # Ko'proq natija tekshiramiz
+        'default_search': 'scsearch25',
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -45,6 +46,7 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             valid_entries = []
             
+            # Taqiqlangan spam va reklama so'zlari
             spam_words = [
                 'join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 
                 'по ссылке', 'подпишись', 'http', 'www', '.me', 'kanal', 'obuna'
@@ -57,10 +59,10 @@ def search_and_send_audio(message):
                     uploader = (entry.get('uploader') or '').lower()
                     duration = entry.get('duration', 0) or 0
                     
-                    # 1. Reklama va spamlarni tekshiramiz
+                    # 1. Spam bor-yo'qligini tekshiramiz
                     is_spam = any(word in title or word in description or word in uploader for word in spam_words)
                     
-                    # 2. 60 soniyadan qisqa (29 sekundlik) demo/parchalarni filtrlab tashlaymiz
+                    # 2. 60 soniyadan qisqa parchalarni filtrlaymiz
                     if not is_spam and duration > 60:
                         valid_entries.append(entry)
             
