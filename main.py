@@ -1,17 +1,18 @@
+import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import yt_dlp
 
-# TOKENINGIZ
 TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
 bot = telebot.TeleBot(TOKEN)
 
-print("Musiqa yuklovchi bot ishga tushdi...")
+print("Musiqa boti ishga tushdi...")
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(
         message, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni topib beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni topib yuklab beraman!"
     )
 
 @bot.message_handler(func=lambda message: True)
@@ -19,41 +20,59 @@ def search_music(message):
     query = message.text.strip()
     chat_id = message.chat.id
     
-    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda...")
+    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
+    output_filename = f"{chat_id}_audio.mp3"
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'default_search': 'ytsearch1:',
+        'outtmpl': output_filename.replace('.mp3', '.%(ext)s'),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '128',
+        }],
+        'quiet': True,
+        'noplaylist': True
+    }
 
     try:
-        # Telegramning o'shbu ommaviy music botlari orqali qidirish
-        results = bot.get_inline_bot_results("@lybot", query)
-        
-        if results and results.results:
-            # Birinchi topilgan audioni olamiz
-            audio_result = None
-            for res in results.results:
-                if res.type == 'audio':
-                    audio_result = res
-                    break
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(query, download=True)
+            if 'entries' in info:
+                video_info = info['entries'][0]
+            else:
+                video_info = info
             
-            if audio_result:
-                # Admin tugmasi
-                markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton("👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7"))
-                
-                # Audioni to'g'ridan-to'g'ri jo'natish
-                bot.send_audio(
-                    chat_id,
-                    audio_result.audio_url,
-                    title=audio_result.title,
-                    performer=getattr(audio_result, 'performer', 'Music Bot'),
-                    caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @Ismoiljanov_7 boti orqali topildi.",
-                    reply_markup=markup
-                )
-                bot.delete_message(chat_id, status_msg.message_id)
-                return
+            title = video_info.get('title', query)
+            uploader = video_info.get('uploader', 'Music Bot')
 
-        bot.edit_message_text("❌ Kechirasiz, bu nom bo'yicha musiqa topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7"))
+
+        with open(output_filename, "rb") as audio_file:
+            bot.send_audio(
+                chat_id, 
+                audio_file, 
+                title=title,
+                performer=uploader,
+                caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @music_1_maktab_bot orqali yuklandi.",
+                reply_markup=markup
+            )
+        
+        bot.delete_message(chat_id, status_msg.message_id)
 
     except Exception as e:
         print(f"Xatolik: {e}")
-        bot.edit_message_text("❌ Qidirish vaqtida xatolik yuz berdi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
+        bot.edit_message_text("❌ Kechirasiz, bu qo'shiqni yuklab bo'lmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
+
+    finally:
+        if os.path.exists(output_filename):
+            os.remove(output_filename)
+        base_name = f"{chat_id}_audio"
+        for ext in ['.webm', '.m4a', '.mp3', '.opus']:
+            f_path = base_name + ext
+            if os.path.exists(f_path):
+                os.remove(f_path)
 
 bot.infinity_polling()
