@@ -24,7 +24,7 @@ def download_music(message):
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda...")
 
     try:
-        # Bevaqt YouTube blokirovkalaridan qochish uchun ochiq Musiqa API qidiruvi
+        # iTunes ochiq API qidiruv manzili (To'g'ri ko'rinishda)
         search_url = f"https://apple.com{requests.utils.quote(query)}&media=music&limit=1"
         response = requests.get(search_url).json()
 
@@ -36,13 +36,14 @@ def download_music(message):
 
             bot.edit_message_text(f"🚀 '{track_name}' Telegram'ga yuklanmoqda...", chat_id, status_msg.message_id)
 
-            # Audio faylni yuklab olish
-            audio_data = requests.get(audio_url).content
-            file_name = f"downloads/{chat_id}_music.mp3"
-            
+            # Vaqtinchalik downloads papkasini ochish
             if not os.path.exists("downloads"):
                 os.makedirs("downloads")
 
+            # Audio faylni serverga vaqtincha yuklab olish
+            audio_data = requests.get(audio_url).content
+            file_name = f"downloads/{chat_id}_music.mp3"
+            
             with open(file_name, "wb") as f:
                 f.write(audio_data)
 
@@ -50,7 +51,7 @@ def download_music(message):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("👤 Admin", url="https://t.me"))
 
-            # Telegram'ga audio qilib yuborish
+            # Telegram'ga audio fayl qilib yuborish
             with open(file_name, "rb") as audio_file:
                 bot.send_audio(
                     chat_id, 
@@ -61,13 +62,16 @@ def download_music(message):
                     reply_markup=markup
                 )
 
-            os.remove(file_name)
+            # Ishlatib bo'lingan vaqtinchalik faylni o'chirish
+            if os.path.exists(file_name):
+                os.remove(file_name)
+                
             bot.delete_message(chat_id, status_msg.message_id)
         else:
             bot.edit_message_text("❌ Kechirasiz, bunday nomli musiqa topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
 
     except Exception as e:
-        print(f"Xatolik: {e}")
+        print(f"Xatolik yuz berdi: {e}")
         bot.edit_message_text("⚠️ Musiqani yuklashda muammo bo'ldi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
 
 bot.infinity_polling()
