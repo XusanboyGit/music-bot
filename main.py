@@ -23,7 +23,7 @@ def search_and_send_audio(message):
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch10', # Ищем больше вариантов, чтобы точно найти чистый трек
+        'default_search': 'scsearch15', # Ko'proq natija tekshiramiz
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -41,9 +41,9 @@ def search_and_send_audio(message):
                 return
 
             entries = info.get('entries', [info])
-            selected_entry = None
+            valid_entries = []
             
-            # Список слов, по которым определяем спам и рекламу
+            # Reklama va спам so'zlar ro'yxati
             spam_words = ['join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 'по ссылке', 'подпишись']
             
             for entry in entries:
@@ -52,20 +52,17 @@ def search_and_send_audio(message):
                     description = (entry.get('description') or '').lower()
                     uploader = (entry.get('uploader') or '').lower()
                     
-                    # Проверяем, есть ли спам-слова в названии, описании или авторе
                     is_spam = any(word in title or word in description or word in uploader for word in spam_words)
                     
                     if not is_spam:
-                        selected_entry = entry
-                        break
+                        valid_entries.append(entry)
             
-            # Если чистый трек не нашлся, берем хотя бы первый вариант
-            if not selected_entry and entries:
-                selected_entry = entries[0]
-
-            if not selected_entry or 'webpage_url' not in selected_entry:
-                bot.edit_message_text("❌ Kechirasiz, musiqani yuklab bo'lmadi.", chat_id, status_msg.message_id)
+            # Agar hamma topilgan natijalar reklama bo'lsa, spamlarni tashlamaymiz!
+            if not valid_entries:
+                bot.edit_message_text("❌ Kechirasiz, bu qo'shiqning reklamasiz toza nusxasi topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
                 return
+
+            selected_entry = valid_entries[0]
 
             ydl.download([selected_entry['webpage_url']])
             
