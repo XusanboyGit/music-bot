@@ -3,8 +3,8 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import yt_dlp
 
-# BOT TOKENINGIZ
-TOKEN = "8981526249:AAFgRy_t3DFIiRYRYzYWgJ3ZhdZfe0exRZY"
+# YANGI BOT TOKENINGIZ
+TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
 bot = telebot.TeleBot(TOKEN)
 
 print("Musiqa yuklovchi bot muvaffaqiyatli ishga tushdi...")
@@ -24,7 +24,7 @@ def search_and_send_audio(message):
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     output_filename = f"{chat_id}_music.mp3"
 
-    # yt-dlp sozlamalari (YouTube'dan qidirib MP3 qilish uchun)
+    # yt-dlp sozlamalari
     ydl_opts = {
         'format': 'bestaudio/best',
         'default_search': 'ytsearch1:',
@@ -48,7 +48,7 @@ def search_and_send_audio(message):
             title = video_info.get('title', query)
             uploader = video_info.get('uploader', 'Music Bot')
 
-        # Admin tugmasi
+        # Admin bilan bog'lanish tugmasi
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7"))
 
@@ -70,7 +70,7 @@ def search_and_send_audio(message):
         bot.edit_message_text("❌ Kechirasiz, bu nom bo'yicha musiqa topilmadi yoki yuklashda xatolik yuz berdi.", chat_id, status_msg.message_id)
 
     finally:
-        # Vaqtinchalik fayllarni o'chirib tashlash
+        # Vaqtinchalik fayllarni o'chirish
         if os.path.exists(output_filename):
             os.remove(output_filename)
         base_name = f"{chat_id}_music"
