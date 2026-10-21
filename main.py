@@ -1,20 +1,19 @@
 import os
-import re
+import requests
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import yt_dlp
 
 # BOT TOKENINGIZ
 TOKEN = "8981526249:AAFgRy_t3DFIiRYRYzYWgJ3ZhdZfe0exRZY"
 bot = telebot.TeleBot(TOKEN)
 
-print("Musiqa yuklovchi bot muvaffaqiyatli ishga tushdi...")
+print("Musiqa yuklovchi bot yangi tizimda muvaffaqiyatli ishga tushdi...")
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(
         message, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni Telegram'ga yuklab beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni tezkor va cheklovsiz yuklab beraman!"
     )
 
 @bot.message_handler(func=lambda message: True)
@@ -22,68 +21,53 @@ def download_music(message):
     query = message.text.strip()
     chat_id = message.chat.id
     
-    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
-
-    if not os.path.exists("downloads"):
-        os.makedirs("downloads")
-        
-    output_template = f"downloads/{chat_id}_%(title)s.%(ext)s"
-    
-    # Kengaytirilgan va xavfsiz yt-dlp sozlamalari
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'default_search': 'ytsearch1',
-        'noplaylist': True,
-        'quiet': True,
-        'outtmpl': output_template,
-        # Blokirovkadan qochish uchun standart brauzer parodiyasi
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-        }
-    }
+    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda...")
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([query])
-            
-        files = os.listdir("downloads")
-        user_file = None
-        for f in files:
-            if f.startswith(f"{chat_id}_"):
-                user_file = f
-                break
+        # Bevaqt YouTube blokirovkalaridan qochish uchun ochiq Musiqa API qidiruvi
+        search_url = f"https://apple.com{requests.utils.quote(query)}&media=music&limit=1"
+        response = requests.get(search_url).json()
 
-        if user_file:
-            file_path = os.path.join("downloads", user_file)
-            
-            # Fayl nomidan chat_id ni tozalash
-            clean_title = re.sub(r'^\d+_\s*', '', user_file)
-            clean_title = os.path.splitext(clean_title)[0]
+        if response.get("resultCount", 0) > 0:
+            track = response["results"][0]
+            audio_url = track["previewUrl"]  # Musiqa fayli havolasi
+            track_name = track["trackName"]
+            artist_name = track["artistName"]
 
+            bot.edit_message_text(f"🚀 '{track_name}' Telegram'ga yuklanmoqda...", chat_id, status_msg.message_id)
+
+            # Audio faylni yuklab olish
+            audio_data = requests.get(audio_url).content
+            file_name = f"downloads/{chat_id}_music.mp3"
+            
+            if not os.path.exists("downloads"):
+                os.makedirs("downloads")
+
+            with open(file_name, "wb") as f:
+                f.write(audio_data)
+
+            # Admin tugmasi
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("👤 Admin", url="https://t.me"))
 
-            # Faylni audio qilib yuborish
-            with open(file_path, 'rb') as audio:
+            # Telegram'ga audio qilib yuborish
+            with open(file_name, "rb") as audio_file:
                 bot.send_audio(
                     chat_id, 
-                    audio, 
-                    title=clean_title, 
-                    performer="Music Bot",
-                    caption="🎵 Musiqangiz tayyor!\n\n🚀 @Ismoiljanov_7 boti orqali yuklandi.",
+                    audio_file, 
+                    title=track_name, 
+                    performer=artist_name,
+                    caption=f"🎵 {artist_name} - {track_name}\n\n🚀 @Ismoiljanov_7 boti orqali yuklandi.",
                     reply_markup=markup
                 )
-                
-            os.remove(file_path)
+
+            os.remove(file_name)
             bot.delete_message(chat_id, status_msg.message_id)
         else:
-            bot.edit_message_text("❌ Fayl yuklandi, ammo tizimdan topilmadi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
+            bot.edit_message_text("❌ Kechirasiz, bunday nomli musiqa topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
 
     except Exception as e:
-        # Xatolik panel logida ko'rinishi uchun konsolga chiqaramiz
-        print(f"!!! YUKLASHDA XATOLIK: {str(e)}")
-        bot.edit_message_text(f"⚠️ Yuklashda xatolik bo'ldi.\nSabab: {str(e)[:50]}...", chat_id, status_msg.message_id)
+        print(f"Xatolik: {e}")
+        bot.edit_message_text("⚠️ Musiqani yuklashda muammo bo'ldi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
 
 bot.infinity_polling()
