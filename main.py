@@ -4,6 +4,7 @@ import yt_dlp
 import os
 import glob
 
+# Bot tokeningiz
 TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
 bot = telebot.TeleBot(TOKEN)
 
