@@ -20,13 +20,12 @@ def search_and_send_audio(message):
     chat_id = message.chat.id
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
-    # Qidiruv so'ziga 'audio' yoki 'song' qo'shib qidirsak, spam kanallar chiqish ehtimoli keskin kamayadi
     search_query = f"{query} audio"
     
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch20',
+        'default_search': 'scsearch25', # Ko'proq natija tekshiramiz
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -46,7 +45,6 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             valid_entries = []
             
-            # Kengaytirilgan taqiqlangan so'zlar va belgi/havolalar ro'yxati
             spam_words = [
                 'join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 
                 'по ссылке', 'подпишись', 'http', 'www', '.me', 'kanal', 'obuna'
@@ -57,15 +55,17 @@ def search_and_send_audio(message):
                     title = entry.get('title', '').lower()
                     description = (entry.get('description') or '').lower()
                     uploader = (entry.get('uploader') or '').lower()
+                    duration = entry.get('duration', 0) or 0
                     
-                    # Agar matnda havolalar yoki spamsiz so'zlar bo'lsa tashlab yuboramiz
+                    # 1. Reklama va spamlarni tekshiramiz
                     is_spam = any(word in title or word in description or word in uploader for word in spam_words)
                     
-                    if not is_spam:
+                    # 2. 60 soniyadan qisqa (29 sekundlik) demo/parchalarni filtrlab tashlaymiz
+                    if not is_spam and duration > 60:
                         valid_entries.append(entry)
             
             if not valid_entries:
-                bot.edit_message_text("❌ Kechirasiz, bu qo'shiqning barcha nusxalarida reklama bor ekan. Boshqacharoq qilib yozib ko'ring.", chat_id, status_msg.message_id)
+                bot.edit_message_text("❌ Kechirasiz, bu qo'shiqning to'liq va reklamasiz nusxasi topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
                 return
 
             selected_entry = valid_entries[0]
