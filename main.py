@@ -20,10 +20,13 @@ def search_and_send_audio(message):
     chat_id = message.chat.id
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
+    # Qidiruv so'ziga 'audio' yoki 'song' qo'shib qidirsak, spam kanallar chiqish ehtimoli keskin kamayadi
+    search_query = f"{query} audio"
+    
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch15',
+        'default_search': 'scsearch20',
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -34,7 +37,7 @@ def search_and_send_audio(message):
             os.makedirs('downloads')
             
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=False)
+            info = ydl.extract_info(search_query, download=False)
             
             if not info or ('entries' in info and not info['entries']):
                 bot.edit_message_text("❌ Kechirasiz, bu nom bo'yicha musiqa topilmadi.", chat_id, status_msg.message_id)
@@ -43,8 +46,11 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             valid_entries = []
             
-            # Reklama va spam so'zlar ro'yxati
-            spam_words = ['join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 'по ссылке', 'подпишись']
+            # Kengaytirilgan taqiqlangan so'zlar va belgi/havolalar ro'yxati
+            spam_words = [
+                'join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 
+                'по ссылке', 'подпишись', 'http', 'www', '.me', 'kanal', 'obuna'
+            ]
             
             for entry in entries:
                 if entry:
@@ -52,13 +58,14 @@ def search_and_send_audio(message):
                     description = (entry.get('description') or '').lower()
                     uploader = (entry.get('uploader') or '').lower()
                     
+                    # Agar matnda havolalar yoki spamsiz so'zlar bo'lsa tashlab yuboramiz
                     is_spam = any(word in title or word in description or word in uploader for word in spam_words)
                     
                     if not is_spam:
                         valid_entries.append(entry)
             
             if not valid_entries:
-                bot.edit_message_text("❌ Kechirasiz, bu qo'shiqning reklamasiz toza nusxasi topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
+                bot.edit_message_text("❌ Kechirasiz, bu qo'shiqning barcha nusxalarida reklama bor ekan. Boshqacharoq qilib yozib ko'ring.", chat_id, status_msg.message_id)
                 return
 
             selected_entry = valid_entries[0]
