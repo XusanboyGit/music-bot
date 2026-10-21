@@ -3,8 +3,8 @@ from telebot import types
 import yt_dlp
 import os
 import glob
+import traceback
 
-# Bot tokeningiz
 TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
 bot = telebot.TeleBot(TOKEN)
 
@@ -18,14 +18,17 @@ def send_welcome(message):
 @bot.message_handler(content_types=['text'])
 def search_and_send_audio(message):
     query = message.text.strip()
-    status_msg = bot.send_message(message.chat.id, f"⏳ '{query}' qidirilmoqda va to'liq yuklanmoqda...")
+    chat_id = message.chat.id
+    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
     ydl_opts = {
-        'format': 'ba[ext=m4a]/ba/b',
-        'outtmpl': f'downloads/{message.chat.id}_%(id)s.%(ext)s',
+        'format': 'bestaudio',
+        'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
         'default_search': 'ytsearch1',
         'noplaylist': True,
-        'quiet': True
+        'quiet': True,
+        # YouTube cheklovlarini chetlab o'tish uchun qo'shimcha sozlama
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}}
     }
     
     try:
@@ -35,7 +38,7 @@ def search_and_send_audio(message):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(query, download=True)
             
-            search_pattern = f"downloads/{message.chat.id}_*"
+            search_pattern = f"downloads/{chat_id}_*"
             files = glob.glob(search_pattern)
             
             if files:
@@ -52,7 +55,7 @@ def search_and_send_audio(message):
                 
                 with open(audio_file_path, 'rb') as audio:
                     bot.send_audio(
-                        chat_id=message.chat.id,
+                        chat_id=chat_id,
                         audio=audio,
                         title=video_title,
                         performer="Music Bot",
@@ -62,13 +65,13 @@ def search_and_send_audio(message):
                 
                 if os.path.exists(audio_file_path):
                     os.remove(audio_file_path)
-                bot.delete_message(message.chat.id, status_msg.message_id)
+                bot.delete_message(chat_id, status_msg.message_id)
             else:
-                bot.edit_message_text("❌ Kechirasiz, musiqani topib bo'lmadi.", message.chat.id, status_msg.message_id)
+                bot.edit_message_text("❌ Kechirasiz, musiqani topib bo'lmadi.", chat_id, status_msg.message_id)
                 
     except Exception as e:
-        print(f"Xatolik yuz berdi: {e}")
-        bot.edit_message_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.", message.chat.id, status_msg.message_id)
+        print(f"Xatolik tafsiloti: {traceback.format_exc()}")
+        bot.edit_message_text("❌ YouTube yuklashga ruxsat bermadi yoki xatolik yuz berdi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
 
 print("Musiqa yuklovchi bot ishga tushdi...")
 bot.infinity_polling()
