@@ -1,54 +1,76 @@
 import telebot
-import requests
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot import types
+import yt_dlp
+import os
+import glob
 
-TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
+# Bot tokeningiz
+TOKEN = "8981526249:AAFgRy_t3DFIiRYRYzYWgJ3ZhdZfe0exRZY"
 bot = telebot.TeleBot(TOKEN)
-
-print("Bot musicale avviato correttamente...")
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(
-        message, 
-        f"Ciao {message.from_user.first_name}! 🎵\n\nScrivi il nome di qualsiasi canzone o artista e la troverò per te!"
+    bot.send_message(
+        message.chat.id, 
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni yuklab beraman!"
     )
 
-@bot.message_handler(func=lambda message: True)
-def search_and_send_music(message):
+@bot.message_handler(content_types=['text'])
+def search_and_send_audio(message):
     query = message.text.strip()
-    chat_id = message.chat.id
+    status_msg = bot.send_message(message.chat.id, f"⏳ '{query' qidirilmoqda va yuklanmoqda...")
     
-    status_msg = bot.send_message(chat_id, f"⏳ Ricerca di '{query}' in corso...")
-
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': f'downloads/{message.chat.id}_%(id)s.%(ext)s',
+        'default_search': 'ytsearch1',
+        'noplaylist': True,
+        'quiet': True
+    }
+    
     try:
-        # Ricerca tramite API Deezer (supporta tutti i brani famosi e commerciali)
-        search_url = f"https://api.deezer.com/search?q={query}&limit=1"
-        response = requests.get(search_url).json()
-
-        if response.get('data') and len(response['data']) > 0:
-            track = response['data'][0]
-            audio_url = track['preview']  # Anteprima audio MP3 di alta qualità
-            title = track['title']
-            performer = track['artist']['name']
-
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("👤 Contatta l'Amministratore", url="https://t.me/Ismoiljanov_7"))
-
-            bot.send_audio(
-                chat_id,
-                audio_url,
-                title=title,
-                performer=performer,
-                caption=f"🎵 La tua musica è pronta!\n\n🚀 Scaricato tramite @music_1_maktab_bot",
-                reply_markup=markup
-            )
-            bot.delete_message(chat_id, status_msg.message_id)
-        else:
-            bot.edit_message_text("❌ Nessun brano trovato con questo nome. Prova con un altro nome.", chat_id, status_msg.message_id)
-
+        if not os.path.exists('downloads'):
+            os.makedirs('downloads')
+            
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = yt_dlp.YoutubeDL(ydl_opts).extract_info(query, download=True)
+            
+            search_pattern = f"downloads/{message.chat.id}_*"
+            files = glob.glob(search_pattern)
+            
+            if files:
+                audio_file_path = files[0]
+                
+                # Sarlavhani xavfsiz olish
+                if 'entries' in info:
+                    video_title = info['entries'][0].get('title', query)
+                else:
+                    video_title = info.get('title', query)
+                
+                inline_markup = types.InlineKeyboardMarkup()
+                btn_owner = types.InlineKeyboardButton(text="👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7")
+                inline_markup.add(btn_owner)
+                
+                with open(audio_file_path, 'rb') as audio:
+                    bot.send_audio(
+                        chat_id=message.chat.id,
+                        audio=audio,
+                        title=video_title,
+                        performer="Music Bot",
+                        caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @Ismoiljanov_7 boti orqali yuklandi.",
+                        reply_markup=inline_markup
+                    )
+                
+                # Faylni o'chirish
+                if os.path.exists(audio_file_path):
+                    os.remove(audio_file_path)
+                bot.delete_message(message.chat.id, status_msg.message_id)
+            else:
+                bot.edit_message_text("❌ Kechirasiz, musiqani topib bo'lmadi.", message.chat.id, status_msg.message_id)
+                
     except Exception as e:
-        print(f"Errore: {e}")
-        bot.edit_message_text("❌ Si è verificato un errore durante la ricerca. Riprova.", chat_id, status_msg.message_id)
+        print(f"Xatolik yuz berdi: {e}")
+        bot.edit_message_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.", message.chat.id, status_msg.message_id)
 
+print("Musiqa yuklovchi bot muvaffaqiyatli ishga tushdi...")
 bot.infinity_polling()
