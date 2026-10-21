@@ -23,7 +23,7 @@ def search_and_send_audio(message):
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch5',
+        'default_search': 'scsearch10', # Ищем больше вариантов, чтобы точно найти чистый трек
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -43,15 +43,29 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             selected_entry = None
             
+            # Список слов, по которым определяем спам и рекламу
+            spam_words = ['join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 'по ссылке', 'подпишись']
+            
             for entry in entries:
                 if entry:
                     title = entry.get('title', '').lower()
-                    if 'join' not in title and 'channel' not in title and 'bot' not in title:
+                    description = (entry.get('description') or '').lower()
+                    uploader = (entry.get('uploader') or '').lower()
+                    
+                    # Проверяем, есть ли спам-слова в названии, описании или авторе
+                    is_spam = any(word in title or word in description or word in uploader for word in spam_words)
+                    
+                    if not is_spam:
                         selected_entry = entry
                         break
             
-            if not selected_entry:
+            # Если чистый трек не нашлся, берем хотя бы первый вариант
+            if not selected_entry and entries:
                 selected_entry = entries[0]
+
+            if not selected_entry or 'webpage_url' not in selected_entry:
+                bot.edit_message_text("❌ Kechirasiz, musiqani yuklab bo'lmadi.", chat_id, status_msg.message_id)
+                return
 
             ydl.download([selected_entry['webpage_url']])
             
