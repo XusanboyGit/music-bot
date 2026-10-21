@@ -23,7 +23,7 @@ def search_and_send_audio(message):
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch15', # Ko'proq natija tekshiramiz
+        'default_search': 'scsearch15',
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -43,7 +43,7 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             valid_entries = []
             
-            # Reklama va спам so'zlar ro'yxati
+            # Reklama va spam so'zlar ro'yxati
             spam_words = ['join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 'по ссылке', 'подпишись']
             
             for entry in entries:
@@ -57,7 +57,6 @@ def search_and_send_audio(message):
                     if not is_spam:
                         valid_entries.append(entry)
             
-            # Agar hamma topilgan natijalar reklama bo'lsa, spamlarni tashlamaymiz!
             if not valid_entries:
                 bot.edit_message_text("❌ Kechirasiz, bu qo'shiqning reklamasiz toza nusxasi topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
                 return
