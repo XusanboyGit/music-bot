@@ -24,9 +24,13 @@ def download_music(message):
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda...")
 
     try:
-        # iTunes ochiq API qidiruv manzili (To'g'ri ko'rinishda)
-        search_url = f"https://apple.com{requests.utils.quote(query)}&media=music&limit=1"
-        response = requests.get(search_url).json()
+        # To'g'rilangan iTunes API qidiruv manzili
+        search_url = f"https://apple.com{requests.utils.parse_qs(query if isinstance(query, str) else str(query)) or query}&media=music&limit=1"
+        # Sodda va xatosiz havola yaratish:
+        search_url = "https://apple.com"
+        params = {'term': query, 'media': 'music', 'limit': 1}
+        
+        response = requests.get(search_url, params=params).json()
 
         if response.get("resultCount", 0) > 0:
             track = response["results"][0]
