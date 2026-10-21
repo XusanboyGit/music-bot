@@ -23,7 +23,7 @@ def search_and_send_audio(message):
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch1',
+        'default_search': 'scsearch5', # Bir nechta variantni qidirib, tozasini tanlaymiz
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -36,24 +36,34 @@ def search_and_send_audio(message):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(query, download=False)
             
-            if not info or ('entries' in info and not info['entries']) or (not 'entries' in info and not info):
+            if not info or ('entries' in info and not info['entries']):
                 bot.edit_message_text("❌ Kechirasiz, bu nom bo'yicha musiqa topilmadi.", chat_id, status_msg.message_id)
                 return
 
-            ydl.download([query])
+            entries = info.get('entries', [info])
+            selected_entry = None
+            
+            # Reklama va спам треklarni filtrlab tashlaymiz
+                for entry in entries:
+                if entry:
+                    title = entry.get('title', '').lower()
+                    if 'join' not in title and 'channel' not in title and 'bot' not in title:
+                        selected_entry = entry
+                        break
+            
+            if not selected_entry:
+                selected_entry = entries[0] # Agar hammasida shunday bo'lsa, birinchisini olamiz
+
+            # Tanlangan трекni yuklab olamiz
+            ydl.download([selected_entry['webpage_url']])
             
             search_pattern = f"downloads/{chat_id}_*"
             files = glob.glob(search_pattern)
             
             if files:
                 audio_file_path = files[0]
-                
-                if 'entries' in info:
-                    video_title = info['entries'][0].get('title', query)
-                    uploader = info['entries'][0].get('uploader', 'Music Bot')
-                else:
-                    video_title = info.get('title', query)
-                    uploader = info.get('uploader', 'Music Bot')
+                video_title = selected_entry.get('title', query)
+                uploader = selected_entry.get('uploader', 'Music Bot')
                 
                 inline_markup = types.InlineKeyboardMarkup()
                 btn_owner = types.InlineKeyboardButton(text="👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7")
@@ -77,10 +87,9 @@ def search_and_send_audio(message):
                 
     except Exception as e:
         print(f"Xatolik: {e}")
-        bot.edit_message_text("❌ Bu qo'shiqda cheklov bor ekan. Boshqa qo'shiq yozib ko'ring.", chat_id, status_msg.message_id)
+        bot.edit_message_text("❌ Xatolik yuz berdi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
 
     finally:
-        # Har ehtimolga qarshi qoldiq fayllarni tozalash
         base_name = f"downloads/{chat_id}_"
         for f in glob.glob(base_name + '*'):
             if os.path.exists(f):
