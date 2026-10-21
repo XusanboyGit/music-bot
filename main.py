@@ -1,78 +1,54 @@
-import os
 import telebot
+import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-import yt_dlp
 
 TOKEN = "8961484963:AAFWzNThapXfIE0X2iaDylqm08NO6dDZMq8"
 bot = telebot.TeleBot(TOKEN)
 
-print("Musiqa boti ishga tushdi...")
+print("Musiqa boti muvaffaqiyatli ishga tushdi...")
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(
         message, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni topib yuklab beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yoki ijrochini yozing, men uni topib beraman!"
     )
 
 @bot.message_handler(func=lambda message: True)
-def search_music(message):
+def search_and_send_music(message):
     query = message.text.strip()
     chat_id = message.chat.id
     
-    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
-    output_filename = f"{chat_id}_audio.mp3"
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'default_search': 'ytsearch1:',
-        'outtmpl': output_filename.replace('.mp3', '.%(ext)s'),
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '128',
-        }],
-        'quiet': True,
-        'noplaylist': True
-    }
+    status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda...")
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=True)
-            if 'entries' in info:
-                video_info = info['entries'][0]
-            else:
-                video_info = info
-            
-            title = video_info.get('title', query)
-            uploader = video_info.get('uploader', 'Music Bot')
+        # Jamendo ommaviy ochiq API orqali qidirish (serverga yuklama tushirmaydi va block bo'lmaydi)
+        url = f"https://api.jamendo.com/v3.0/tracks/?client_id=56d32708&format=json&limit=1&search={query}"
+        response = requests.get(url).json()
 
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7"))
+        if response.get('results') and len(response['results']) > 0:
+            track = response['results'][0]
+            audio_url = track['audio']
+            title = track['name']
+            performer = track['artist_name']
 
-        with open(output_filename, "rb") as audio_file:
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7"))
+
             bot.send_audio(
-                chat_id, 
-                audio_file, 
+                chat_id,
+                audio_url,
                 title=title,
-                performer=uploader,
-                caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @music_1_maktab_bot orqali yuklandi.",
+                performer=performer,
+                caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @music_1_maktab_bot orqali topildi.",
                 reply_markup=markup
             )
-        
-        bot.delete_message(chat_id, status_msg.message_id)
+            bot.delete_message(chat_id, status_msg.message_id)
+        else:
+            bot.edit_message_text("❌ Kechirasiz, bu nom bo'yicha musiqa topilmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
 
     except Exception as e:
-        print(f"Xatolik: {e}")
-        bot.edit_message_text("❌ Kechirasiz, bu qo'shiqni yuklab bo'lmadi. Boshqa nom yozib ko'ring.", chat_id, status_msg.message_id)
-
-    finally:
-        if os.path.exists(output_filename):
-            os.remove(output_filename)
-        base_name = f"{chat_id}_audio"
-        for ext in ['.webm', '.m4a', '.mp3', '.opus']:
-            f_path = base_name + ext
-            if os.path.exists(f_path):
-                os.remove(f_path)
+        print(f"Xatolik yuz berdi: {e}")
+        bot.edit_message_text("❌ Qidiruvda xatolik bo'ldi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
 
 bot.infinity_polling()
