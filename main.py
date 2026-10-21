@@ -19,7 +19,6 @@ def search_and_send_audio(message):
     query = message.text.strip()
     status_msg = bot.send_message(message.chat.id, f"⏳ '{query}' qidirilmoqda va to'liq yuklanmoqda...")
     
-    # yt-dlp sozlamalari (ffmpeg talab qilmaydigan va to'g'ridan-to'g'ri audio oladigan format)
     ydl_opts = {
         'format': 'ba[ext=m4a]/ba/b',
         'outtmpl': f'downloads/{message.chat.id}_%(id)s.%(ext)s',
