@@ -24,7 +24,7 @@ def download_music(message):
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda...")
 
     try:
-        # TO'G'RI ITUNES API MANZILI
+        # TO'G'RI VA ISHLAYDIGAN ITUNES API MANZILI
         search_url = "https://apple.com"
         params = {'term': query, 'media': 'music', 'limit': 1}
         
