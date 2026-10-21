@@ -1,3 +1,5 @@
+import os
+import requests
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -11,7 +13,7 @@ print("Musiqa yuklovchi bot muvaffaqiyatli ishga tushdi...")
 def send_welcome(message):
     bot.reply_to(
         message, 
-        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni tezkor yuklab beraman!"
+        f"Salom {message.from_user.first_name}! 🎵\n\nMusiqa nomini yozing, men uni ortiqcha reklamalarsiz yuklab beraman!"
     )
 
 @bot.message_handler(func=lambda message: True)
@@ -28,19 +30,42 @@ def search_and_send_audio(message):
         audio_sent = False
         if inline_results and inline_results.results:
             for result in inline_results.results:
-                # Faqat audio turidagi kontentni olamiz
-                if result.type == 'audio':
+                # Obyekt ichidan haqiqiy audio URL manzilini qidiramiz
+                audio_url = None
+                if hasattr(result, 'audio_url') and result.audio_url:
+                    audio_url = result.audio_url
+                elif hasattr(result, 'content_url') and result.content_url:
+                    audio_url = result.content_url
+                
+                if audio_url:
+                    bot.edit_message_text(f"🚀 '{query}' reklamalardan tozalanmoqda va yuklanmoqda...", chat_id, status_msg.message_id)
+                    
+                    # Audioni server xotirasiga vaqtincha yuklab olamiz (Bu reklamani butunlay o'chiradi)
+                    audio_data = requests.get(audio_url).content
+                    file_name = f"{chat_id}_clean_music.mp3"
+                    
+                    with open(file_name, "wb") as f:
+                        f.write(audio_data)
+                    
                     # Admin bilan bog'lanish tugmasi
                     markup = InlineKeyboardMarkup()
                     markup.add(InlineKeyboardButton("👤 Admin bilan bog'lanish", url="https://t.me"))
                     
-                    # Ortiqcha kanallar matnini o'chirib, faqat toza audioni yuborish
-                    bot.send_audio(
-                        chat_id, 
-                        result.audio_file_id if hasattr(result, 'audio_file_id') else result.id,
-                        caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @Ismoiljanov_7 boti orqali yuklandi.",
-                        reply_markup=markup
-                    )
+                    # Yangi toza fayl sifatida Telegram'ga yuklaymiz
+                    with open(file_name, "rb") as audio_file:
+                        bot.send_audio(
+                            chat_id, 
+                            audio_file, 
+                            title=query,
+                            performer="Music Bot",
+                            caption=f"🎵 Musiqangiz tayyor!\n\n🚀 @Ismoiljanov_7 boti orqali yuklandi.",
+                            reply_markup=markup
+                        )
+                    
+                    # Vaqtinchalik faylni o'chirish
+                    if os.path.exists(file_name):
+                        os.remove(file_name)
+                        
                     audio_sent = True
                     break
             
@@ -56,3 +81,4 @@ def search_and_send_audio(message):
         bot.edit_message_text("⚠️ Qidiruvda muammo bo'ldi. Qaytadan urinib ko'ring.", chat_id, status_msg.message_id)
 
 bot.infinity_polling()
+s
