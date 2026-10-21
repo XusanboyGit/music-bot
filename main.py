@@ -23,7 +23,7 @@ def search_and_send_audio(message):
     ydl_opts = {
         'format': 'bestaudio',
         'outtmpl': f'downloads/{chat_id}_%(id)s.%(ext)s',
-        'default_search': 'scsearch5', # Bir nechta variantni qidirib, tozasini tanlaymiz
+        'default_search': 'scsearch5',
         'noplaylist': True,
         'quiet': True,
         'ignoreerrors': True
@@ -43,8 +43,7 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             selected_entry = None
             
-            # Reklama va спам треklarni filtrlab tashlaymiz
-                for entry in entries:
+            for entry in entries:
                 if entry:
                     title = entry.get('title', '').lower()
                     if 'join' not in title and 'channel' not in title and 'bot' not in title:
@@ -52,9 +51,8 @@ def search_and_send_audio(message):
                         break
             
             if not selected_entry:
-                selected_entry = entries[0] # Agar hammasida shunday bo'lsa, birinchisini olamiz
+                selected_entry = entries[0]
 
-            # Tanlangan трекni yuklab olamiz
             ydl.download([selected_entry['webpage_url']])
             
             search_pattern = f"downloads/{chat_id}_*"
