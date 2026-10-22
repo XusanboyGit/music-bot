@@ -20,7 +20,6 @@ def search_and_send_audio(message):
     chat_id = message.chat.id
     status_msg = bot.send_message(chat_id, f"⏳ '{query}' qidirilmoqda va yuklanmoqda...")
     
-    # Qidiruv yanada aniq chiqishi uchun 'audio' so'zini qo'shamiz
     search_query = f"{query} audio"
     
     ydl_opts = {
@@ -46,7 +45,6 @@ def search_and_send_audio(message):
             entries = info.get('entries', [info])
             valid_entries = []
             
-            # Taqiqlangan spam va reklama so'zlari
             spam_words = [
                 'join', 'channel', 'bot', 't.me', 'telegram', 'subscribers', 
                 'по ссылке', 'подпишись', 'http', 'www', '.me', 'kanal', 'obuna'
@@ -59,10 +57,8 @@ def search_and_send_audio(message):
                     uploader = (entry.get('uploader') or '').lower()
                     duration = entry.get('duration', 0) or 0
                     
-                    # 1. Spam bor-yo'qligini tekshiramiz
                     is_spam = any(word in title or word in description or word in uploader for word in spam_words)
                     
-                    # 2. 60 soniyadan qisqa parchalarni filtrlaymiz
                     if not is_spam and duration > 60:
                         valid_entries.append(entry)
             
@@ -79,11 +75,13 @@ def search_and_send_audio(message):
             
             if files:
                 audio_file_path = files[0]
-                video_title = selected_entry.get('title', query)
-                uploader = selected_entry.get('uploader', 'Music Bot')
+                
+                # MUHIM O'ZGARISH: Reklama chiqmasligi uchun nomni to'g'ridan-to'g'ri o'zingiz yozgan so'zdan qo'yamiz
+                video_title = query.title()
+                uploader = "Music Bot"
                 
                 inline_markup = types.InlineKeyboardMarkup()
-                btn_owner = types.InlineKeyboardButton(text="👤 Admin bilan bog'lanish", url="https://t.me/Ismoiljanov_7")
+                btn_owner = types.InlineKeyboardButton(text="👤 Admin bilan bog'lanish", url="https://t.me/x_ismailjanov")
                 inline_markup.add(btn_owner)
                 
                 with open(audio_file_path, 'rb') as audio:
